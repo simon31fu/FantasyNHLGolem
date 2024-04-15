@@ -5,15 +5,16 @@
 #' @import shiny
 #' @noRd
 #'
+
 app_server <- function(input, output, session) {
-  load("./data/data.rData")
+  load("./data.rData")
   shinyjs::addClass(selector = "body", class = "sidebar-collapse")
   allYears <- c('2018','2017','2016','2015','2014')
-  team_choices <- reactive({
+  team_choices <- shiny::reactive({
     choices <- unique(vF_teams_DT$long.name)
     return(choices[order(choices)])
   })
-  arena_choices <- reactive({
+  arena_choices <- shiny::reactive({
     choices <- unique(vF_teams_DT$venue.city)
     return(choices[order(choices)])
   })
@@ -32,76 +33,76 @@ app_server <- function(input, output, session) {
   observe({
     updateSelectInput(session, inputId = "playerPerf2", choices = player_choices_perf())
   })
-  player_choices <- reactive({
+  player_choices <- shiny::reactive({
     player_choices <- unique(vF_player_info[vF_player_info$player.id %in% vF_player_season_data[vF_player_season_data$season == input$year]$player.id]$fullName)
     return(player_choices[order(player_choices)])
   })
-  team_Perf1 <- reactive({
+  team_Perf1 <- shiny::reactive({
     return(input$teamPerf1)
   })
-  team_Perf2 <- reactive({
+  team_Perf2 <- shiny::reactive({
     return(input$teamPerf2)
   })
-  team_Perf3 <- reactive({
+  team_Perf3 <- shiny::reactive({
     return(input$teamPerf3)
   })
-  team_stat_type <- reactive({
+  team_stat_type <- shiny::reactive({
     return(input$statType)
   })
-  left_home <- reactive({
+  left_home <- shiny::reactive({
     if (input$leftHome == "Home") {
       return("at home")
     }else{
       return("away")
     }
   })
-  right_home <- reactive({
+  right_home <- shiny::reactive({
     if (input$rightHome == "Home") {
       return("at home")
     }else{
       return("away")
     }
   })
-  left_team_id <- reactive({
+  left_team_id <- shiny::reactive({
     return(vF_teams_DT[long.name == input$leftTeam]$team.id)
   })
-  right_team_id <- reactive({
+  right_team_id <- shiny::reactive({
     return(vF_teams_DT[long.name == input$rightTeam]$team.id)
   })
-  arena_team_id <- reactive({
+  arena_team_id <- shiny::reactive({
     return(vF_teams_DT[venue.city == input$arena]$team.id)
   })
-  arena_team <- reactive({
+  arena_team <- shiny::reactive({
     return(vF_teams_DT[venue.city == input$arena]$long.name)
   })
-  arena_name <- reactive({
+  arena_name <- shiny::reactive({
     return(vF_teams_DT[venue.city == input$arena]$venue.name)
   })
-  left_player_id <- reactive({
+  left_player_id <- shiny::reactive({
     return(vF_player_info[fullName == input$leftPlayer]$player.id)
   })
-  right_player_id <- reactive({
+  right_player_id <- shiny::reactive({
     return(vF_player_info[fullName == input$rightPlayer]$player.id)
   })
-  selected_year <- reactive({
+  selected_year <- shiny::reactive({
     return(input$year)
   })
-  selected_year_arena_shots <- reactive({
+  selected_year_arena_shots <- shiny::reactive({
     return(input$yearArenaShots)
   })
-  selected_year_player_shots <- reactive({
+  selected_year_player_shots <- shiny::reactive({
     return(input$yearPlayerShots)
   })
-  selected_yearStat <- reactive({
+  selected_yearStat <- shiny::reactive({
     return(input$yearStat)
   })
-  selected_yearPerf <- reactive({
+  selected_yearPerf <- shiny::reactive({
     return(input$yearTeam)
   })
-  selected_yearPlayer <- reactive({
+  selected_yearPlayer <- shiny::reactive({
     return(input$yearPlayer)
   })
-  player_choices_perf <- reactive({
+  player_choices_perf <- shiny::reactive({
     if (req(input$playerCat) == 'Offence'){
       playerIds <- vF_player_info[primaryPosition.code %in% c('R','L','C')]$player.id
     } else if (req(input$playerCat) == 'Defence') {
@@ -114,13 +115,13 @@ app_server <- function(input, output, session) {
     return(sort(unique(paste(vF_player_info[vF_player_info$player.id %in% playerIds]$firstName,
                              vF_player_info[vF_player_info$player.id %in% playerIds]$lastName, sep=' '))))
   })
-  leftHome <- reactive({
+  leftHome <- shiny::reactive({
     return(input$leftHome)
   })
-  rightHome <- reactive({
+  rightHome <- shiny::reactive({
     return(input$rightHome)
   })
-  df_left <- reactive({
+  df_left <- shiny::reactive({
     year <- selected_year()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -134,7 +135,7 @@ app_server <- function(input, output, session) {
     return(vF_game_plays[team.id.for == left_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
                          & game.id %in% games_left$game.id])
   })
-  df_right <- reactive({
+  df_right <- shiny::reactive({
     year <- selected_year()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -148,7 +149,7 @@ app_server <- function(input, output, session) {
     return(vF_game_plays[team.id.for == right_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
                          & game.id %in% games_right$game.id])
   })
-  df_arena_home <- reactive({
+  df_arena_home <- shiny::reactive({
     year <- selected_year_arena_shots()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -158,7 +159,7 @@ app_server <- function(input, output, session) {
     return(vF_game_plays[team.id.for == arena_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
                          & game.id %in% games_arena$game.id])
   })
-  df_arena_away <- reactive({
+  df_arena_away <- shiny::reactive({
     year <- selected_year_arena_shots()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -168,7 +169,7 @@ app_server <- function(input, output, session) {
     return(vF_game_plays[team.id.for != arena_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
                          & game.id %in% games_arena$game.id])
   })
-  df_left_player <- reactive({
+  df_left_player <- shiny::reactive({
     year <- selected_year_player_shots()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -178,7 +179,7 @@ app_server <- function(input, output, session) {
     return(vF_game_plays[(as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
                          & game_and_event_id %in% games_player$game_and_event_id])
   })
-  df_right_player <- reactive({
+  df_right_player <- shiny::reactive({
     year <- selected_year_player_shots()
     upper_lim <- as.numeric(year) +1
     upper_lim <- paste0(as.character(upper_lim),'000000')
@@ -908,3 +909,4 @@ app_server <- function(input, output, session) {
            " on the left and ", input$rightPlayer, " on the right.\n The density of the shot map shows the frequency of shots taken in each area of the rink. Individual dot points show where goals have been scored from.")
   })
 }
+

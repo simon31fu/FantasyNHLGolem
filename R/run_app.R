@@ -14,6 +14,17 @@ run_app <- function(
   uiPattern = "/",
   ...
 ) {
+  # Define a custom function to load data
+  load_all_data <- function() {
+    data_path <- golem::app_sys("app/data")
+    load(file.path(data_path, "data.RData"))
+  }
+
+  # Define a custom onStart function if not provided
+  custom_onStart <- function() {
+    load_all_data()  # Load data
+    if (!is.null(onStart)) onStart()  # Then run any user-provided onStart function
+  }
   with_golem_options(
     app = shinyApp(
       ui = app_ui,
