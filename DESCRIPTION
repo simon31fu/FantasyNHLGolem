@@ -12,3 +12,24 @@ Encoding: UTF-8
 Language: en-US
 LazyData: true
 RoxygenNote: 7.3.1
+Imports: 
+    dplyr,
+    DT,
+    GGally,
+    ggplot2,
+    ggrepel,
+    magrittr,
+    maps,
+    plotly,
+    plyr,
+    reshape2,
+    scales,
+    shiny,
+    shinydashboard,
+    shinyjs,
+    shinythemes,
+    stringr,
+    tableHTML,
+    tidyr
+Depends: 
+    tidyverse

@@ -4,8 +4,10 @@
 #'     DO NOT REMOVE.
 #' @import shiny
 #' @noRd
+#'
+load('./data/2019-12-11_app-data.RData', envir=.GlobalEnv)
 app_server <- function(input, output, session) {
-  addClass(selector = "body", class = "sidebar-collapse")
+  shinyjs::addClass(selector = "body", class = "sidebar-collapse")
   allYears <- c('2018','2017','2016','2015','2014')
   team_choices <- reactive({
     choices <- unique(vF_teams_DT$long.name)
@@ -187,7 +189,7 @@ app_server <- function(input, output, session) {
                          & game_and_event_id %in% games_player$game_and_event_id])
   })
   output$performanceByTeam <- renderUI({
-    fluidPage(theme = shinytheme("spacelab"),
+    fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
                 align='center',
                 #collapsible box for main inputs
@@ -226,7 +228,7 @@ app_server <- function(input, output, session) {
     )
   })
   output$performanceByPlayer <- renderUI({
-    fluidPage(theme = shinytheme("spacelab"),
+    fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
                 align='center',
                 box(solidHeader = F, status = 'primary', width = '100%',
@@ -252,7 +254,7 @@ app_server <- function(input, output, session) {
   output$statisticBySeason <- renderUI({
     navbarPage("", id = 'someID',
                tabPanel("Summary",
-                        fluidPage(theme = shinytheme("spacelab"),
+                        fluidPage(theme = shinythemes::shinytheme("spacelab"),
                                   fluidRow(
                                     align='center',
                                     box(solidHeader = F, width = '100%',
@@ -280,7 +282,7 @@ app_server <- function(input, output, session) {
                         )
                ),
                tabPanel("Visualization",
-                        fluidPage(theme = shinytheme("spacelab"),
+                        fluidPage(theme = shinythemes::shinytheme("spacelab"),
                                   fluidRow(
                                     align='center',
                                     box(solidHeader = F, width = '100%',
@@ -309,7 +311,7 @@ app_server <- function(input, output, session) {
     )
   })
   output$shotByTeam <- renderUI({
-    fluidPage(theme = shinytheme("spacelab"),
+    fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
                 align='center',
                 #collapsible box for main inputs
@@ -343,7 +345,7 @@ app_server <- function(input, output, session) {
     )
   })
   output$shotByArena <- renderUI({
-    fluidPage(theme = shinytheme("spacelab"),
+    fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
                 align='center',
                 #collapsible box for main inputs
@@ -367,7 +369,7 @@ app_server <- function(input, output, session) {
     )
   })
   output$shotByPlayer <- renderUI({
-    fluidPage(theme = shinytheme("spacelab"),
+    fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
                 align='center',
                 #collapsible box for main inputs
@@ -719,7 +721,7 @@ app_server <- function(input, output, session) {
                                                                                               alpha = .5) + geom_text_repel(data = arenaCities, aes(x=long, y=lat, label=name), hjust=0, vjust=0,
                                                                                                                             size=3.5) + scale_size_continuous(breaks = set_breaks)
   })
-  output$icemap_team <- renderPlotly({
+  output$icemap_team <- plotly::renderPlotly({
     df_left <- df_left()
     df_right <- df_right()
     df_left_shots <- df_left[result.eventTypeId == 'SHOT']
@@ -777,7 +779,7 @@ app_server <- function(input, output, session) {
         )
       )
   })
-  output$icemap_Arena <- renderPlotly({
+  output$icemap_Arena <- plotly::renderPlotly({
     df_left <- df_arena_home()
     df_right <- df_arena_away()
     df_left_shots <- df_left[result.eventTypeId == 'SHOT']
@@ -835,7 +837,7 @@ app_server <- function(input, output, session) {
         )
       )
   })
-  output$icemap_player <- renderPlotly({
+  output$icemap_player <- plotly::renderPlotly({
     df_left <- df_left_player()
     df_right <- df_right_player()
     df_left_shots <- df_left[result.eventTypeId == 'SHOT']
