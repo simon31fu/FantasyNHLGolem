@@ -5,484 +5,457 @@
 #' @import shiny
 #' @noRd
 #'
-
+library(shiny)
+library(shinydashboard)
+library(DT)
+library(ggplot2)
+library(plotly)
+library(dplyr)
+library(stringr)
+library(shinyjs)
+load("./data.RData")
+usethis::use_data(vF_game_info, overwrite = TRUE)
+usethis::use_data(vF_game_plays, overwrite = TRUE)
+usethis::use_data(vF_game_plays_players, overwrite = TRUE)
+usethis::use_data(vF_game_teams_stats, overwrite = TRUE)
+usethis::use_data(vF_player_info, overwrite = TRUE)
+usethis::use_data(vF_player_season_data, overwrite = TRUE)
+usethis::use_data(vF_teams_DT, overwrite = TRUE)
 app_server <- function(input, output, session) {
-  load("./data.rData")
+  # Include CSS class to collapse the sidebar initially
   shinyjs::addClass(selector = "body", class = "sidebar-collapse")
-  allYears <- c('2018','2017','2016','2015','2014')
-  team_choices <- shiny::reactive({
+
+  # Define static lists of years and player types
+  allYears <- c('2018', '2017', '2016', '2015', '2014')
+  player_type_choices <- c('Offence', 'Defence', 'Goalie')
+
+  # Data pre-processing: creating concatenated full names and IDs
+  vF_player_info$fullName <- paste(vF_player_info$firstName, vF_player_info$lastName, sep = ' ')
+  vF_game_plays$game_and_event_id <- paste(vF_game_plays$game.id, vF_game_plays$about.eventIdx, sep = '')
+  vF_game_plays_players$game_and_event_id <- paste(vF_game_plays_players$game.id, vF_game_plays_players$eventIdx, sep = '')
+  image_file <- "full-rink.png"  # Path to your rink image, make sure it's accessible
+
+  # Reactive constructs for dynamic dropdowns based on dataset
+  team_choices <- reactive({
     choices <- unique(vF_teams_DT$long.name)
-    return(choices[order(choices)])
-  })
-  arena_choices <- shiny::reactive({
-    choices <- unique(vF_teams_DT$venue.city)
-    return(choices[order(choices)])
-  })
-  player_type_choices <- c('Offence', 'Defence','Goalie')
-  vF_player_info$fullName <- paste(vF_player_info$firstName,vF_player_info$lastName,sep=' ')
-  vF_game_plays$game_and_event_id <- paste(vF_game_plays$game.id,vF_game_plays$about.eventIdx,sep='')
-  vF_game_plays_players$game_and_event_id <- paste(vF_game_plays_players$game.id,vF_game_plays_players$eventIdx,sep='')
-  image_file <- "full-rink.png"
-  observeEvent(input$tabs,{
-    updateSelectInput(session,'tabs')
+    choices[order(choices)]
   })
 
+  arena_choices <- reactive({
+    choices <- unique(vF_teams_DT$venue.city)
+    choices[order(choices)]
+  })
+
+  # Observers for dynamic UI elements related to input tabs
+  observeEvent(input$tabs, {
+    updateSelectInput(session, 'tabs', selected = input$tabs)
+  })
+
+  # Observers to update player performance dropdowns
   observe({
     updateSelectInput(session, inputId = "playerPerf1", choices = player_choices_perf())
   })
+
   observe({
     updateSelectInput(session, inputId = "playerPerf2", choices = player_choices_perf())
   })
-  player_choices <- shiny::reactive({
-    player_choices <- unique(vF_player_info[vF_player_info$player.id %in% vF_player_season_data[vF_player_season_data$season == input$year]$player.id]$fullName)
-    return(player_choices[order(player_choices)])
+  # Reactive for filtering player choices based on selected year
+  player_choices <- reactive({
+    player_ids <- vF_player_season_data[vF_player_season_data$season == input$year]$player.id
+    player_names <- vF_player_info[vF_player_info$player.id %in% player_ids]$fullName
+    player_names[order(player_names)]
   })
-  team_Perf1 <- shiny::reactive({
-    return(input$teamPerf1)
+
+  # Reactives for team performance selections
+  team_Perf1 <- reactive(input$teamPerf1)
+  team_Perf2 <- reactive(input$teamPerf2)
+  team_Perf3 <- reactive(input$teamPerf3)
+  team_stat_type <- reactive(input$statType)
+
+  # Reactives to determine home or away status
+  left_home <- reactive(if (input$leftHome == "Home") "at home" else "away")
+  right_home <- reactive(if (input$rightHome == "Home") "at home" else "away")
+
+  # Reactives for getting team and player IDs
+  left_team_id <- reactive(vF_teams_DT[vF_teams_DT$long.name == input$leftTeam]$team.id)
+  right_team_id <- reactive(vF_teams_DT[vF_teams_DT$long.name == input$rightTeam]$team.id)
+  arena_team_id <- reactive(vF_teams_DT[vF_teams_DT$venue.city == input$arena]$team.id)
+
+  # Reactives for getting team and arena details
+  arena_team <- reactive(vF_teams_DT[vF_teams_DT$venue.city == input$arena]$long.name)
+  arena_name <- reactive(vF_teams_DT[vF_teams_DT$venue.city == input$arena]$venue.name)
+
+  # Reactives for player IDs based on selection
+  left_player_id <- reactive(vF_player_info[vF_player_info$fullName == input$leftPlayer]$player.id)
+  right_player_id <- reactive(vF_player_info[vF_player_info$fullName == input$rightPlayer]$player.id)
+
+  # Reactives for various selected years
+  selected_year <- reactive(input$year)
+  selected_year_arena_shots <- reactive(input$yearArenaShots)
+  selected_year_player_shots <- reactive(input$yearPlayerShots)
+  selected_yearStat <- reactive(input$yearStat)
+  selected_yearPerf <- reactive(input$yearTeam)
+  selected_yearPlayer <- reactive(input$yearPlayer)
+
+  # Reactive for dynamic player choices based on player category
+  player_choices_perf <- reactive({
+    req(input$playerCat)  # Ensure player category is selected before proceeding
+    playerIds <- switch(input$playerCat,
+                        'Offence' = vF_player_info[primaryPosition.code %in% c('R', 'L', 'C')]$player.id,
+                        'Defence' = vF_player_info[primaryPosition.code == 'D']$player.id,
+                        'Goalie'  = vF_player_info[primaryPosition.code == 'G']$player.id,
+                        vF_player_info[primaryPosition.code == 'D']$player.id)  # Default to Defence if none matched
+    playerNames <- vF_player_info[vF_player_info$player.id %in% playerIds, c("firstName", "lastName")]
+    sort(unique(paste(playerNames$firstName, playerNames$lastName, sep=' ')))
   })
-  team_Perf2 <- shiny::reactive({
-    return(input$teamPerf2)
+
+  # Reactives for home/away status
+  leftHome <- reactive(input$leftHome)
+  rightHome <- reactive(input$rightHome)
+
+  # Reactive expressions to calculate game data based on selected parameters
+  df_left <- reactive({
+    req(selected_year(), leftHome(), left_team_id())  # Ensure necessary inputs are available
+    year_bounds(selected_year())
+    games_left <- vF_game_info[get_team_filter(leftHome(), left_team_id())]
+    vF_game_plays[team.id.for == left_team_id() & within_year_bounds(game.id) & game.id %in% games_left$game.id]
   })
-  team_Perf3 <- shiny::reactive({
-    return(input$teamPerf3)
+
+  df_right <- reactive({
+    req(selected_year(), rightHome(), right_team_id())
+    year_bounds(selected_year())
+    games_right <- vF_game_info[get_team_filter(rightHome(), right_team_id())]
+    vF_game_plays[team.id.for == right_team_id() & within_year_bounds(game.id) & game.id %in% games_right$game.id]
   })
-  team_stat_type <- shiny::reactive({
-    return(input$statType)
+
+  # Ensure the arena-specific reactive data fetches are correctly structured
+  df_arena_home <- reactive({
+    reactive_game_data(selected_year_arena_shots(), arena_team_id(), true)
   })
-  left_home <- shiny::reactive({
-    if (input$leftHome == "Home") {
-      return("at home")
-    }else{
-      return("away")
-    }
+
+  df_arena_away <- reactive({
+    reactive_game_data(selected_year_arena_shots(), arena_team_id(), false)
   })
-  right_home <- shiny::reactive({
-    if (input$rightHome == "Home") {
-      return("at home")
-    }else{
-      return("away")
-    }
+
+  # Ensure the player-specific reactive data fetches are correctly structured
+  df_left_player <- reactive({
+    reactive_player_data(selected_year_player_shots(), left_player_id())
   })
-  left_team_id <- shiny::reactive({
-    return(vF_teams_DT[long.name == input$leftTeam]$team.id)
+
+  df_right_player <- reactive({
+    reactive_player_data(selected_year_player_shots(), right_player_id())
   })
-  right_team_id <- shiny::reactive({
-    return(vF_teams_DT[long.name == input$rightTeam]$team.id)
-  })
-  arena_team_id <- shiny::reactive({
-    return(vF_teams_DT[venue.city == input$arena]$team.id)
-  })
-  arena_team <- shiny::reactive({
-    return(vF_teams_DT[venue.city == input$arena]$long.name)
-  })
-  arena_name <- shiny::reactive({
-    return(vF_teams_DT[venue.city == input$arena]$venue.name)
-  })
-  left_player_id <- shiny::reactive({
-    return(vF_player_info[fullName == input$leftPlayer]$player.id)
-  })
-  right_player_id <- shiny::reactive({
-    return(vF_player_info[fullName == input$rightPlayer]$player.id)
-  })
-  selected_year <- shiny::reactive({
-    return(input$year)
-  })
-  selected_year_arena_shots <- shiny::reactive({
-    return(input$yearArenaShots)
-  })
-  selected_year_player_shots <- shiny::reactive({
-    return(input$yearPlayerShots)
-  })
-  selected_yearStat <- shiny::reactive({
-    return(input$yearStat)
-  })
-  selected_yearPerf <- shiny::reactive({
-    return(input$yearTeam)
-  })
-  selected_yearPlayer <- shiny::reactive({
-    return(input$yearPlayer)
-  })
-  player_choices_perf <- shiny::reactive({
-    if (req(input$playerCat) == 'Offence'){
-      playerIds <- vF_player_info[primaryPosition.code %in% c('R','L','C')]$player.id
-    } else if (req(input$playerCat) == 'Defence') {
-      playerIds <- vF_player_info[primaryPosition.code %in% c('D')]$player.id
-    } else if (req(input$playerCat) == 'Goalie') {
-      playerIds <- vF_player_info[primaryPosition.code %in% c('G')]$player.id
-    } else {
-      playerIds <- vF_player_info[primaryPosition.code %in% c('D')]$player.id
-    }
-    return(sort(unique(paste(vF_player_info[vF_player_info$player.id %in% playerIds]$firstName,
-                             vF_player_info[vF_player_info$player.id %in% playerIds]$lastName, sep=' '))))
-  })
-  leftHome <- shiny::reactive({
-    return(input$leftHome)
-  })
-  rightHome <- shiny::reactive({
-    return(input$rightHome)
-  })
-  df_left <- shiny::reactive({
-    year <- selected_year()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    if (leftHome() == 'Home') {
-      games_left <- vF_game_info[home.teamID == left_team_id()]
-    }else if (leftHome() == "Away") {
-      games_left <- vF_game_info[away.teamID == left_team_id()]
-    }
-    return(vF_game_plays[team.id.for == left_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_left$game.id])
-  })
-  df_right <- shiny::reactive({
-    year <- selected_year()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    if (rightHome() == 'Home') {
-      games_right <- vF_game_info[home.teamID == right_team_id()]
-    }else if (rightHome() == "Away") {
-      games_right <- vF_game_info[away.teamID == right_team_id()]
-    }
-    return(vF_game_plays[team.id.for == right_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_right$game.id])
-  })
-  df_arena_home <- shiny::reactive({
-    year <- selected_year_arena_shots()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    games_arena <- vF_game_info[name == arena_name()]
-    return(vF_game_plays[team.id.for == arena_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_arena$game.id])
-  })
-  df_arena_away <- shiny::reactive({
-    year <- selected_year_arena_shots()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    games_arena <- vF_game_info[name == arena_name()]
-    return(vF_game_plays[team.id.for != arena_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_arena$game.id])
-  })
-  df_left_player <- shiny::reactive({
-    year <- selected_year_player_shots()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    games_player <- vF_game_plays_players[player.id == left_player_id() & (playerType == "Scorer" | playerType == "Shooter")]
-    return(vF_game_plays[(as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game_and_event_id %in% games_player$game_and_event_id])
-  })
-  df_right_player <- shiny::reactive({
-    year <- selected_year_player_shots()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    games_player <- vF_game_plays_players[player.id == right_player_id() & (playerType == "Scorer" | playerType == "Shooter")]
-    return(vF_game_plays[(as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game_and_event_id %in% games_player$game_and_event_id])
-  })
+
+  # Render UI for Team Performance Comparison
   output$performanceByTeam <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                #collapsible box for main inputs
-                box(solidHeader = F, status = 'primary', width = '100%',
-                    title = 'Compare 3 teams',
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('teamPerf1', 'Select Team 1', choices = team_choices(), selected = 'New York Rangers', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('teamPerf2', 'Select Team 2', choices = team_choices(), selected = 'Florida Panthers', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('teamPerf3', 'Select Team 3', choices = team_choices(), selected = 'Boston Bruins', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 15%; margin-top: 0em;",
-                        selectInput('statType', 'Statistics Level', choices = c('Macro','Micro'), selected = 'Macro', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL))
-                )
-              ),
-              fluidRow(
-                align='center',
-                box( plotOutput("trendPlot1"),  width = 12, solidHeader = FALSE, status = 'primary')
-              ),
-              fluidRow(
-                align='center',
-                box( plotOutput("trendPlot2"), width = 12, solidHeader = FALSE, status = 'primary')
-              ),
-              fluidRow(
-                align='center',
-                box( plotOutput("trendPlot3"), width = 12, solidHeader = FALSE, status = 'primary')
-              ),
-              fluidRow(
-                align='center',
-                box( plotOutput("trendPlot4"), width = 12, solidHeader = FALSE, status = 'primary')
-              )
+    shinythemes::shinytheme("spacelab")
+    fluidPage(
+      fluidRow(
+        align = 'center',
+        box(
+          solidHeader = FALSE, status = 'primary', width = 12,
+          title = 'Compare 3 Teams',
+          div(style = "display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('teamPerf1', 'Select Team 1', choices = team_choices(), selected = 'New York Rangers')),
+          div(style = "display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('teamPerf2', 'Select Team 2', choices = team_choices(), selected = 'Florida Panthers')),
+          div(style = "display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('teamPerf3', 'Select Team 3', choices = team_choices(), selected = 'Boston Bruins')),
+          div(style = "display: inline-block; vertical-align: top; width: 10%;",
+              selectInput('statType', 'Statistics Level', choices = c('Macro', 'Micro'), selected = 'Macro'))
+        )
+      ),
+      fluidRow(
+        align = 'center',
+        box(plotOutput("trendPlot1"), width = 12, solidHeader = FALSE, status = 'primary'),
+        box(plotOutput("trendPlot2"), width = 12, solidHeader = FALSE, status = 'primary'),
+        box(plotOutput("trendPlot3"), width = 12, solidHeader = FALSE, status = 'primary'),
+        box(plotOutput("trendPlot4"), width = 12, solidHeader = FALSE, status = 'primary')
+      )
     )
   })
+
+  # Render UI for Player Performance Comparison
   output$performanceByPlayer <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                box(solidHeader = F, status = 'primary', width = '100%',
-                    title = 'Compare 2 players',
-                    div(style="display: vertical-align:top; width: 15%; margin-top: 0em;",
-                        selectInput('playerCat', 'Select a Catogory', choices = player_type_choices, selected = 'Defence', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('playerPerf1', 'Select Player 1', choices = NULL, multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('playerPerf2', 'Select Player 2', choices = NULL, multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL))
-                )
-              ),
-              fluidRow(
-                align='center',
-                box( plotOutput("playerTrendPlot1"),  width = 6, solidHeader = FALSE, status = 'primary'),
-                box( plotOutput("playerTrendPlot2"),  width = 6, solidHeader = FALSE, status = 'primary')
-              )
+    shinythemes::shinytheme("spacelab")
+    fluidPage(
+      fluidRow(
+        align = 'center',
+        box(
+          solidHeader = FALSE, status = 'primary', width = '100%',
+          title = 'Compare 2 Players',
+          div(style = "vertical-align: top; width: 15%;",
+              selectInput('playerCat', 'Select a Category', choices = player_type_choices, selected = 'Defence')),
+          div(style = "display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('playerPerf1', 'Select Player 1', choices = player_choices_perf())),
+          div(style = "display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('playerPerf2', 'Select Player 2', choices = player_choices_perf()))
+        )
+      ),
+      fluidRow(
+        align = 'center',
+        box(plotOutput("playerTrendPlot1"), width = 6, solidHeader = FALSE, status = 'primary'),
+        box(plotOutput("playerTrendPlot2"), width = 6, solidHeader = FALSE, status = 'primary')
+      )
     )
   })
+
+  # Render UI for Seasonal Statistics
   output$statisticBySeason <- renderUI({
-    navbarPage("", id = 'someID',
-               tabPanel("Summary",
-                        fluidPage(theme = shinythemes::shinytheme("spacelab"),
-                                  fluidRow(
-                                    align='center',
-                                    box(solidHeader = F, width = '100%',
-                                        title = 'Arena', status = "primary",
-                                        div(style="display: inline-block;vertical-align:top; width: 15%; margin-top: 0em;",
-                                            selectInput('yearStat', 'By Season', choices = c(allYears, 'All'), selected = '2018', multiple = FALSE,
-                                                        selectize = TRUE, width = NULL, size = NULL)),
-                                        DT::dataTableOutput("table_statistic_arena")
-                                    )
-                                  ),
-                                  fluidRow(
-                                    align='center',
-                                    box(solidHeader = F, width = '100%',
-                                        title = 'Team', status = "primary",
-                                        DT::dataTableOutput("table_statistic_team")
-                                    )
-                                  ),
-                                  fluidRow(
-                                    align='center',
-                                    box(solidHeader = F, width = '100%',
-                                        title = 'Player', status = "primary",
-                                        DT::dataTableOutput("table_statistic_player")
-                                    )
-                                  )
-                        )
-               ),
-               tabPanel("Visualization",
-                        fluidPage(theme = shinythemes::shinytheme("spacelab"),
-                                  fluidRow(
-                                    align='center',
-                                    box(solidHeader = F, width = '100%',
-                                        title = 'Arena (by Cities) Home Vs Away Impact by Season', status = "primary"
-                                    )
-                                  ),
-                                  fluidRow(
-                                    align='center',
-                                    box(plotOutput("arenaMapGoals"), status = "primary", width = 6, solidHeader = F, title = 'Goals'),
-                                    box(plotOutput("arenaMapWins"), status = "primary", width = 6, solidHeader = F, title = 'Wins')
-                                  ),
-                                  fluidRow(
-                                    align='center',
-                                    box(solidHeader = F, width = '100%',
-                                        title = 'Team Home Vs Away Performance by Season', status = "primary"
-                                    )
-                                  ),
-                                  fluidRow(
-                                    align='center',
-                                    box(plotOutput("teamGoals"), status = "primary", width = 6, solidHeader = F, title = 'Goals'),
-                                    box(plotOutput("teamWins"), status = "primary", width = 6, solidHeader = F, title = 'Wins')
-                                  )
-                        )
+    shinythemes::shinytheme("spacelab")
+    navbarPage(
+      "", id = 'someID',
+      tabPanel("Summary",
+               fluidPage(
+                 fluidRow(
+                   align = 'center',
+                   box(
+                     solidHeader = FALSE, width = '100%',
+                     title = 'Arena', status = "primary",
+                     div(style = "display: inline-block; vertical-align: top; width: 15%;",
+                         selectInput('yearStat', 'By Season', choices = c(allYears, 'All'), selected = '2018')),
+                     DT::dataTableOutput("table_statistic_arena")
+                   )
+                 ),
+                 fluidRow(
+                   box(solidHeader = FALSE, width = '100%', title = 'Team', status = "primary", DT::dataTableOutput("table_statistic_team")),
+                   box(solidHeader = FALSE, width = '100%', title = 'Player', status = "primary", DT::dataTableOutput("table_statistic_player"))
+                 )
                )
-
+      ),
+      tabPanel("Visualization",
+               fluidPage(
+                 fluidRow(
+                   box(solidHeader = FALSE, width = '100%', title = 'Arena (by Cities) Home Vs Away Impact by Season', status = "primary")
+                 ),
+                 fluidRow(
+                   box(plotOutput("arenaMapGoals"), status = "primary", width = 6, solidHeader = FALSE, title = 'Goals'),
+                   box(plotOutput("arenaMapWins"), status = "primary", width = 6, solidHeader = FALSE, title = 'Wins')
+                 ),
+                 fluidRow(
+                   box(plotOutput("teamGoals"), status = "primary", width = 6, solidHeader = FALSE, title = 'Goals'),
+                   box(plotOutput("teamWins"), status = "primary", width = 6, solidHeader = FALSE, title = 'Wins')
+                 )
+               )
+      )
     )
   })
+  # Shot by Team UI
   output$shotByTeam <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                #collapsible box for main inputs
-                box(solidHeader = F, status = 'primary', collapsible = T, width = '100%',
-                    title = "Filters",
-                    #input selections are inside div so we can place left and right inputs side by side
-                    div(style="display: inline-block;vertical-align:top; width: 30% ; margin-bottom: 0em;",
-                        selectInput('leftTeam', 'Team 1', choices = team_choices(), selected = 'Boston Bruins', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 15% ; margin-bottom: 0em;",
-                        radioButtons('leftHome', '', choices = c('Home','Away'), selected = 'Home',
-                                     inline = FALSE, width = NULL, choiceNames = NULL,
-                                     choiceValues = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-bottom: 0em;",
-                        selectInput('rightTeam', 'Team 2', choices = team_choices(), selected = 'New York Rangers', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 15% ; margin-bottom: 0em;",
-                        radioButtons('rightHome', '', choices = c('Home','Away'), selected = 'Home',
-                                     inline = FALSE, width = NULL, choiceNames = NULL,
-                                     choiceValues = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 20%; margin-top: 0em;",
-                        selectInput('year', 'Season', choices = allYears, selected = '2018', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL))
-                )
-              ),
-              fluidRow(
-                align = "center",
-                box(solidHeader = F, status = 'primary', title = "Rink Plot", width = '100%', textOutput("teamText"),
-                    plotly::plotlyOutput("icemap_team"))
-              )
+    fluidPage(
+      theme = shinythemes::shinytheme("spacelab"),
+      fluidRow(
+        align = 'center',
+        box(solidHeader = FALSE, status = 'primary', collapsible = TRUE, width = '100%',
+            title = "Filters",
+            div(style = "display: inline-block;vertical-align:top; width: 30%;",
+                selectInput('leftTeam', 'Team 1', choices = team_choices(), selected = 'Boston Bruins')),
+            div(style = "display: inline-block;vertical-align:top; width: 15%;",
+                radioButtons('leftHome', '', choices = c('Home', 'Away'), selected = 'Home')),
+            div(style = "display: inline-block;vertical-align:top; width: 30%;",
+                selectInput('rightTeam', 'Team 2', choices = team_choices(), selected = 'New York Rangers')),
+            div(style = "display: inline-block;vertical-align:top; width: 15%;",
+                radioButtons('rightHome', '', choices = c('Home', 'Away'), selected = 'Home')),
+            div(style = "display: inline-block;vertical-align:top; width: 10%;",
+                selectInput('year', 'Season', choices = allYears, selected = '2018'))
+        )
+      ),
+      fluidRow(
+        align = "center",
+        box(solidHeader = FALSE, status = 'primary', title = "Rink Plot", width = '100%', plotlyOutput("icemap_team"))
+      )
     )
   })
+  # Shots by Arena UI
   output$shotByArena <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                #collapsible box for main inputs
-                box(solidHeader = F, status = 'primary',  collapsible = T, width = '100%',
-                    title = "Filters",
-                    #input selections are inside div so we can place left and right inputs side by side
-                    div(style="display: inline-block;vertical-align:top; width: 22% ; margin-top: 0em;",
-                        selectInput('arena', 'Arena', choices = arena_choices(), multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 22% ; margin-top: 0em;",
-                        selectInput('yearArenaShots', 'Season', choices = allYears, selected = '2018', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)
-                    )
-                )
-              ),
-              fluidRow(
-                align = "center",
-                box(title = 'Rink Plot', solidHeader = F, status = 'primary', width = '100%', textOutput("arenaText"),
-                    plotly::plotlyOutput("icemap_Arena"))
-              )
+    fluidPage(
+      theme = shinythemes::shinytheme("spacelab"),
+      fluidRow(
+        align = 'center',
+        box(
+          solidHeader = TRUE,
+          status = 'primary',
+          collapsible = TRUE,
+          width = '100%',
+          title = "Arena Filters",
+          div(
+            style = "display: inline-block; vertical-align: top; width: 22%;",
+            selectInput('arena', 'Arena', choices = arena_choices(), multiple = FALSE,
+                        selectize = TRUE, width = NULL, size = NULL)
+          ),
+          div(
+            style = "display: inline-block; vertical-align: top; width: 22%;",
+            selectInput('yearArenaShots', 'Season', choices = allYears, selected = '2018', multiple = FALSE,
+                        selectize = TRUE, width = NULL, size = NULL)
+          )
+        )
+      ),
+      fluidRow(
+        align = "center",
+        box(
+          title = 'Rink Plot',
+          solidHeader = TRUE,
+          status = 'primary',
+          width = '100%',
+          textOutput("arenaText"),
+          plotly::plotlyOutput("icemap_Arena")
+        )
+      )
     )
   })
+  # Shots by Player UI
   output$shotByPlayer <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                #collapsible box for main inputs
-                box(solidHeader = F, collapsible = T, width = '100%', status = 'primary',
-                    title = "Filters",
-                    div(style="display: inline-block;vertical-align:top; width: 30% ; margin-top: 0em;",
-                        selectInput('leftPlayer', 'Player 1', choices = player_choices(), selected = "Nikita Kucherov", multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-top: 0em;",
-                        selectInput('rightPlayer', 'Player 2', choices = player_choices(), selected = "Alex Ovechkin",  multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="width: 20%; margin-top: 0em;",
-                        selectInput('yearPlayerShots', 'Season', choices = allYears, multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL))
-                )
-              ),
-              fluidRow(
-                align = "center",
-                box(solidHeader = F, status = 'primary', title = "Rink Plot", width = '100%', textOutput("playerText"),
-                    plotly::plotlyOutput("icemap_player"))
-              )
-    )
-  })
-  output$table_statistic_player <- DT::renderDataTable({
-    playerYear <- selected_yearStat()
-    if (playerYear != 'All'){
-      dataPlayerYear <- vF_player_season_data[vF_player_season_data$season == playerYear]
-    } else {
-      dataPlayerYear <- vF_player_season_data[vF_player_season_data$season %in% allYears]
-    }
-    df <- dataPlayerYear[,c('player.id','stat.assists','stat.goals','stat.games','stat.shots')]
-    df <- df %>% drop_na()
-    dfGroupByPlayer <- aggregate(. ~ player.id, df, sum)
-    dfGroupByPlayer <- merge(dfGroupByPlayer, vF_player_info[,c('player.id','firstName','lastName')], by='player.id')
-    dfGroupByPlayer$Player <- paste(dfGroupByPlayer$firstName, dfGroupByPlayer$lastName, sep=' ')
-    dfGroupByPlayer <- subset(dfGroupByPlayer, select= !(names(dfGroupByPlayer) %in% c('player.id', 'firstName', 'lastName')))
-    dfGroupByPlayer <- dfGroupByPlayer[,c('Player','stat.games','stat.goals','stat.shots','stat.assists')]
-    colnames(dfGroupByPlayer) <- c('Name', 'Games', 'Goals', 'Shots', 'Assists')
-    dfGroupByPlayer <- dfGroupByPlayer[order(dfGroupByPlayer$Goals, decreasing = T),]
-    rownames(dfGroupByPlayer) <- NULL
-    DT::datatable(dfGroupByPlayer, options = list(orderClasses = TRUE, pageLength = 5))
-  })
-  output$table_statistic_team <- DT::renderDataTable({
-    statYear <- selected_yearStat()
-    if (statYear != 'All'){
-      dataStatYear <- vF_game_info[vF_game_info$season == statYear]
-    } else {
-      dataStatYear <- vF_game_info
-    }
-    homeTeam <- dataStatYear[,c('home.teamID', 'home.win', 'home.goals')]
-    awayTeam <- dataStatYear[,c('away.teamID', 'away.win', 'away.goals')]
-    colnames(homeTeam)[1] <- 'team.id'
-    homeTeamGroupBy <- aggregate( .~team.id, homeTeam, sum)
-    colnames(awayTeam)[1] <- 'team.id'
-    awayTeamGroupBy <- aggregate( .~ team.id, awayTeam, sum)
-    teamStat <- merge(homeTeamGroupBy, awayTeamGroupBy, by = 'team.id')
-    teamStat <- merge(teamStat, vF_teams_DT[,c('team.id', 'long.name', 'venue.name', 'venue.city')], by = 'team.id')
-    teamStat <- teamStat[,c('long.name', 'venue.name', 'venue.city', 'home.win', 'away.win', 'home.goals', 'away.goals')]
-    colnames(teamStat) <- c('Name', 'Home Venue', 'City', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals')
-    teamStat$`Total Wins` <- teamStat$`Home Wins` + teamStat$`Away Wins`
-    teamStat <- teamStat[,c('Name', 'Total Wins', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals')]
-    teamStat <- teamStat[order(teamStat$`Total Wins`, decreasing = T),]
-    rownames(teamStat) <- NULL
-    DT::datatable(teamStat,options = list(orderClasses = TRUE, lengthMenu = c(5, 30, 50), pageLength = 5))
-  })
-  output$table_statistic_arena <- DT::renderDataTable({
-    statYear <- selected_yearStat()
-    if (statYear != 'All'){
-      dataStatYear <- vF_game_info[vF_game_info$season == statYear]
-    } else {
-      dataStatYear <- vF_game_info[vF_game_info$season %in% allYears]
-    }
+      fluidPage(
+        theme = shinythemes::shinytheme("spacelab"),
+        fluidRow(
+          align='center',
+          box(
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            width = '100%',
+            status = 'primary',
+            title = "Player Filters",
+            div(
+              style="display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('leftPlayer', 'Player 1', choices = player_choices(), selected = "Nikita Kucherov", multiple = FALSE,
+                          selectize = TRUE, width = NULL, size = NULL)
+            ),
+            div(
+              style="display: inline-block; vertical-align: top; width: 30%;",
+              selectInput('rightPlayer', 'Player 2', choices = player_choices(), selected = "Alex Ovechkin", multiple = FALSE,
+                          selectize = TRUE, width = NULL, size = NULL)
+            ),
+            div(
+              style="width: 20%;",
+              selectInput('yearPlayerShots', 'Season', choices = allYears, multiple = FALSE,
+                          selectize = TRUE, width = NULL, size = NULL)
+            )
+          )
+        ),
+        fluidRow(
+          align = "center",
+          box(
+            solidHeader = TRUE,
+            status = 'primary',
+            title = "Rink Plot",
+            width = '100%',
+            textOutput("playerText"),
+            plotly::plotlyOutput("icemap_player")
+          )
+        )
+      )
+    })
+    # Player Table Statistics
+    output$table_statistic_player <- DT::renderDataTable({
+      req(selected_yearStat())  # Ensure the year is selected
+      playerYear <- selected_yearStat()
+      dataPlayerYear <- if (playerYear != 'All') {
+        vF_player_season_data[vF_player_season_data$season == playerYear]
+      } else {
+        vF_player_season_data[vF_player_season_data$season %in% allYears]
+      }
 
-    df <- dataStatYear[,c('name','home.win','away.win','home.goals','away.goals')]
-    dfGroupByArena <- aggregate(. ~ name , df, sum)
-    colnames(dfGroupByArena)[1] <- 'venue.name'
-    dfGroupByArena <- merge(dfGroupByArena, vF_teams_DT[,c('venue.name', 'long.name', 'venue.city', 'locationName', 'division.name')], by = 'venue.name')
-    colnames(dfGroupByArena) <- c('Name', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals', 'Home Team', 'City', 'Location', 'Division')
-    dfGroupByArena <- dfGroupByArena[,c('Name', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals', 'Home Team', 'Division')]
-    dfGroupByArena <- dfGroupByArena[order(dfGroupByArena$`Home Wins`, decreasing = T),]
-    rownames(dfGroupByArena) <- NULL
-    DT::datatable(dfGroupByArena, options = list(orderClasses = TRUE, lengthMenu = c(5, 30, 50), pageLength = 5))
+      df <- dataPlayerYear %>%
+        select(player.id, stat.assists, stat.goals, stat.games, stat.shots) %>%
+        drop_na() %>%
+        group_by(player.id) %>%
+        summarise_each(list(sum)) %>%
+        left_join(vF_player_info, by = "player.id") %>%
+        mutate(Player = paste(firstName, lastName)) %>%
+        select(Player, stat.games, stat.goals, stat.shots, stat.assists) %>%
+        arrange(desc(stat.goals))
 
-  })
-  output$trendPlot1 <- renderPlot({
-    teamIds <- vF_teams_DT[long.name %in% c(input$teamPerf1, input$teamPerf2, input$teamPerf3)]$team.id
-    df <- vF_game_teams_stats[team.id %in% teamIds]
-    df$game.id <- str_sub(df$game.id, end=-7)
-    df <- as.data.frame(df %>% group_by(game.id, team.id, HoA) %>% summarise_each(funs(sum)))
-    if (team_stat_type() == 'Macro') {
-      df <- df[,c('game.id', "team.id", 'HoA', 'won')]
-      df <- merge(df, vF_teams_DT[,c('team.id','short.name')], by='team.id')
-      df$team.id <- df$short.name
-      ggplot() +
-        geom_bar(data =df, aes(y = won, x = as.factor(team.id), fill = HoA ), size=0.25, width=0.6, alpha= 0.5, stat = "identity", position = 'stack') +
-        theme_bw() +
-        facet_grid(~game.id) +
-        scale_fill_manual("legend", values = c("cyan1", "bisque4")) +
-        xlab('') +ylab('') + ggtitle('Wins') + theme(plot.title = element_text(hjust = 0.5))
-    } else {
-      df <- df[,c('game.id', "team.id", 'HoA', 'blocked')]
-      df <- merge(df, vF_teams_DT[,c('team.id','short.name')], by='team.id')
-      df$team.id <- df$short.name
-      ggplot() +
-        geom_bar(data =df, aes(y = blocked, x = as.factor(team.id), fill = HoA), size=0.25, width=0.6, alpha= 0.5, stat = "identity", position = 'stack') +
-        theme_bw() +
-        facet_grid(~game.id) +
-        scale_fill_manual("legend", values = c("cyan1", "bisque4")) +
-        xlab('') +ylab('') + ggtitle('Blocked') + theme(plot.title = element_text(hjust = 0.5))
-    }
+      DT::datatable(df, options = list(orderClasses = TRUE, pageLength = 5))
+    })
+    # Team Table Statistics
+    output$table_statistic_team <- DT::renderDataTable({
+      req(selected_yearStat())  # Ensure reactive value is ready
+      statYear <- selected_yearStat()
 
-  })
+      dataStatYear <- if (statYear != 'All') {
+        vF_game_info[vF_game_info$season == statYear]
+      } else {
+        vF_game_info
+      }
+
+      homeTeam <- dataStatYear[, c('home.teamID', 'home.win', 'home.goals')]
+      awayTeam <- dataStatYear[, c('away.teamID', 'away.win', 'away.goals')]
+
+      colnames(homeTeam)[1] <- 'team.id'
+      homeTeamGroupBy <- aggregate(. ~ team.id, homeTeam, sum)
+
+      colnames(awayTeam)[1] <- 'team.id'
+      awayTeamGroupBy <- aggregate(. ~ team.id, awayTeam, sum)
+
+      teamStat <- merge(homeTeamGroupBy, awayTeamGroupBy, by = 'team.id')
+      teamStat <- merge(teamStat, vF_teams_DT[, c('team.id', 'long.name', 'venue.name', 'venue.city')], by = 'team.id')
+      teamStat <- teamStat[, c('long.name', 'venue.name', 'venue.city', 'home.win', 'away.win', 'home.goals', 'away.goals')]
+
+      colnames(teamStat) <- c('Name', 'Home Venue', 'City', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals')
+      teamStat$`Total Wins` <- teamStat$`Home Wins` + teamStat$`Away Wins`
+      teamStat <- teamStat[, c('Name', 'Total Wins', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals')]
+      teamStat <- teamStat[order(teamStat$`Total Wins`, decreasing = TRUE),]
+
+      DT::datatable(teamStat, options = list(orderClasses = TRUE, lengthMenu = c(5, 30, 50), pageLength = 5))
+    })
+  # Arena Statistics Table
+    output$table_statistic_arena <- DT::renderDataTable({
+      req(selected_yearStat())
+      statYear <- selected_yearStat()
+
+      dataStatYear <- if (statYear != 'All') {
+        vF_game_info[vF_game_info$season == statYear]
+      } else {
+        vF_game_info[vF_game_info$season %in% allYears]
+      }
+
+      df <- dataStatYear[, c('name', 'home.win', 'away.win', 'home.goals', 'away.goals')]
+      dfGroupByArena <- aggregate(. ~ name, df, sum)
+
+      dfGroupByArena <- merge(dfGroupByArena, vF_teams_DT[, c('venue.name', 'long.name', 'venue.city', 'locationName', 'division.name')], by = 'venue.name')
+
+      colnames(dfGroupByArena) <- c('Name', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals', 'Home Team', 'City', 'Location', 'Division')
+      dfGroupByArena <- dfGroupByArena[, c('Name', 'Home Wins', 'Away Wins', 'Home Goals', 'Away Goals', 'Home Team', 'Division')]
+      dfGroupByArena <- dfGroupByArena[order(dfGroupByArena$`Home Wins`, decreasing = TRUE),]
+
+      DT::datatable(dfGroupByArena, options = list(orderClasses = TRUE, lengthMenu = c(5, 30, 50), pageLength = 5))
+    })
+    # Trend Plot 1 - Wins and Blocks
+    output$trendPlot1 <- renderPlot({
+      req(input$teamPerf1, input$teamPerf2, input$teamPerf3, team_stat_type())
+
+      teamIds <- vF_teams_DT[long.name %in% c(input$teamPerf1, input$teamPerf2, input$teamPerf3)]$team.id
+      df <- vF_game_teams_stats[team.id %in% teamIds]
+      df$game.id <- stringr::str_sub(df$game.id, end = -7)
+      df <- dplyr::group_by(df, game.id, team.id, HoA) %>%
+        dplyr::summarise_all(dplyr::funs(sum), na.rm = TRUE) %>%
+        dplyr::ungroup()
+
+      if (team_stat_type() == 'Macro') {
+        df <- dplyr::select(df, game.id, team.id, HoA, won)
+        df <- merge(df, vF_teams_DT[, c('team.id', 'short.name')], by = 'team.id')
+        df$team.id <- df$short.name
+        ggplot(df, aes(x = as.factor(team.id), y = won, fill = HoA)) +
+          geom_bar(stat = "identity", position = "stack", width = 0.6, alpha = 0.5) +
+          theme_bw() +
+          facet_grid(~game.id) +
+          scale_fill_manual(values = c("cyan1", "bisque4")) +
+          labs(x = '', y = '', title = 'Wins') +
+          theme(plot.title = element_text(hjust = 0.5))
+      } else {
+        df <- dplyr::select(df, game.id, team.id, HoA, blocked)
+        df <- merge(df, vF_teams_DT[, c('team.id', 'short.name')], by = 'team.id')
+        df$team.id <- df$short.name
+        ggplot(df, aes(x = as.factor(team.id), y = blocked, fill = HoA)) +
+          geom_bar(stat = "identity", position = "stack", width = 0.6, alpha = 0.5) +
+          theme_bw() +
+          facet_grid(~game.id) +
+          scale_fill_manual(values = c("cyan1", "bisque4")) +
+          labs(x = '', y = '', title = 'Blocked') +
+          theme(plot.title = element_text(hjust = 0.5))
+      }
+    })
+
   output$trendPlot2 <- renderPlot({
     teamIds <- vF_teams_DT[long.name %in% c(input$teamPerf1, input$teamPerf2, input$teamPerf3)]$team.id
     df <- vF_game_teams_stats[team.id %in% teamIds]
@@ -909,4 +882,3 @@ app_server <- function(input, output, session) {
            " on the left and ", input$rightPlayer, " on the right.\n The density of the shot map shows the frequency of shots taken in each area of the rink. Individual dot points show where goals have been scored from.")
   })
 }
-
