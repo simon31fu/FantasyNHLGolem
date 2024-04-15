@@ -1,3 +1,3 @@
-# testonetwo (development version)
+# NHLGolemApp (development version)
 
 * Initial CRAN submission.

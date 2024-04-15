@@ -19,9 +19,9 @@
 ## to change the name in the app_sys() function in app_config.R /!\
 ##
 golem::fill_desc(
-  pkg_name = "testonetwo", # The Name of the package containing the App
-  pkg_title = "test12", # The Title of the package containing the App
-  pkg_description = "Test for golem app submission. Updated as import progresses.", # The Description of the package containing the App
+  pkg_name = "NHLGolemApp", # The Name of the package containing the App
+  pkg_title = "NHLFantasyAssitor", # The Title of the package containing the App
+  pkg_description = "Test for golem app submission. Updated as app progresses.", # The Description of the package containing the App
   author_first_name = "Simon", # Your First Name
   author_last_name = "Fu", # Your Last Name
   author_email = "ximeng1@ualberta.ca", # Your Email

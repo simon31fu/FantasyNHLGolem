@@ -1,36 +1,33 @@
-Package: testonetwo
-Title: test12
+Package: NHLGolemApp
+Title: NHLFantasyAssitor
 Version: 0.0.0.9000
 Authors@R: person('Simon', 'Fu', email = 'ximeng1@ualberta.ca', role = c('cre', 'aut'))
-Description: Test for golem app submission. Updated as import progresses.
+Description: Test for golem app submission. Updated as app progresses.
 License: MIT + file LICENSE
 URL: https://github.com/simon31fu/FantasyNHLGolem
 BugReports: https://github.com/simon31fu/FantasyNHLGolem/issues
+Depends: 
+    R (>= 2.10)
 Imports: 
     bslib,
     config,
+    data.table,
     dplyr,
     DT,
-    forcats,
     GGally,
     ggplot2,
     ggrepel,
     golem,
-    maps,
     plotly,
     plyr,
     RCurl,
-    readr,
     reshape2,
     scales,
-    shinipsum,
     shiny,
     shinydashboard,
     shinyjs,
     shinythemes,
     stringr,
-    tableHTML,
-    tibble,
     tidyr
 Suggests: 
     spelling,
@@ -40,5 +37,3 @@ Encoding: UTF-8
 Language: en-US
 LazyData: true
 RoxygenNote: 7.3.1
-Depends: 
-    R (>= 2.10)
