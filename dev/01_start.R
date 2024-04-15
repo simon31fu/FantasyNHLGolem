@@ -25,7 +25,7 @@ golem::fill_desc(
   author_first_name = "Simon", # Your First Name
   author_last_name = "Fu", # Your Last Name
   author_email = "ximeng1@ualberta.ca", # Your Email
-  repo_url = NULL, # The URL of the GitHub Repo (optional),
+  repo_url = 'https://github.com/simon31fu/FantasyNHLGolem', # The URL of the GitHub Repo (optional),
   pkg_version = "0.0.0.9000" # The Version of the package containing the App
 )
 
