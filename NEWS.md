@@ -1,3 +1,3 @@
-# Golem.proto (development version)
+# testonetwo (development version)
 
 * Initial CRAN submission.
