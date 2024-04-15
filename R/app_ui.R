@@ -37,7 +37,10 @@ app_ui <- function(request) {
       tags$style(HTML(".main-sidebar { font-size: 15px; }")) # Styling can be adjusted as necessary
     ),
     tabItems(
-      tabItem('team_shots', uiOutput('shotByTeam')),
+      tabItem('team_shots',
+              mod_team_shots_ui("shotByTeam", team_choices = sort(unique(vF_teams_DT$long.name)),
+                                allYears = c('2018','2017','2016','2015','2014'))
+              ),
       tabItem('arena_shots', uiOutput('shotByArena')),
       tabItem('player_shots', uiOutput('shotByPlayer')),
       tabItem('season', uiOutput('statisticBySeason')),

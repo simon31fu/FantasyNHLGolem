@@ -40,6 +40,8 @@ app_server <- function(input, output, session) {
     updateSelectInput(session,'tabs')
   })
 
+  mod_team_shots_server("shotByTeam",image_file = image_file)
+
   observe({
     updateSelectInput(session, inputId = "playerPerf1", choices = player_choices_perf())
   })
@@ -47,7 +49,7 @@ app_server <- function(input, output, session) {
     updateSelectInput(session, inputId = "playerPerf2", choices = player_choices_perf())
   })
   player_choices <- shiny::reactive({
-    player_choices <- unique(vF_player_info[vF_player_info$player.id %in% vF_player_season_data[vF_player_season_data$season == input$year]$player.id]$fullName)
+    player_choices <- unique(vF_player_info[vF_player_info$player.id %in% vF_player_season_data[vF_player_season_data$season == input$yearPlayerShots]$player.id]$fullName)
     return(player_choices[order(player_choices)])
   })
   team_Perf1 <- shiny::reactive({
@@ -61,26 +63,6 @@ app_server <- function(input, output, session) {
   })
   team_stat_type <- shiny::reactive({
     return(input$statType)
-  })
-  left_home <- shiny::reactive({
-    if (input$leftHome == "Home") {
-      return("at home")
-    }else{
-      return("away")
-    }
-  })
-  right_home <- shiny::reactive({
-    if (input$rightHome == "Home") {
-      return("at home")
-    }else{
-      return("away")
-    }
-  })
-  left_team_id <- shiny::reactive({
-    return(vF_teams_DT[long.name == input$leftTeam]$team.id)
-  })
-  right_team_id <- shiny::reactive({
-    return(vF_teams_DT[long.name == input$rightTeam]$team.id)
   })
   arena_team_id <- shiny::reactive({
     return(vF_teams_DT[venue.city == input$arena]$team.id)
@@ -96,9 +78,6 @@ app_server <- function(input, output, session) {
   })
   right_player_id <- shiny::reactive({
     return(vF_player_info[fullName == input$rightPlayer]$player.id)
-  })
-  selected_year <- shiny::reactive({
-    return(input$year)
   })
   selected_year_arena_shots <- shiny::reactive({
     return(input$yearArenaShots)
@@ -127,40 +106,6 @@ app_server <- function(input, output, session) {
     }
     return(sort(unique(paste(vF_player_info[vF_player_info$player.id %in% playerIds]$firstName,
                              vF_player_info[vF_player_info$player.id %in% playerIds]$lastName, sep=' '))))
-  })
-  leftHome <- shiny::reactive({
-    return(input$leftHome)
-  })
-  rightHome <- shiny::reactive({
-    return(input$rightHome)
-  })
-  df_left <- shiny::reactive({
-    year <- selected_year()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    if (leftHome() == 'Home') {
-      games_left <- vF_game_info[home.teamID == left_team_id()]
-    }else if (leftHome() == "Away") {
-      games_left <- vF_game_info[away.teamID == left_team_id()]
-    }
-    return(vF_game_plays[team.id.for == left_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_left$game.id])
-  })
-  df_right <- shiny::reactive({
-    year <- selected_year()
-    upper_lim <- as.numeric(year) +1
-    upper_lim <- paste0(as.character(upper_lim),'000000')
-    lower_lim <- as.numeric(year) -1
-    lower_lim <- paste0( as.character(lower_lim),'999999')
-    if (rightHome() == 'Home') {
-      games_right <- vF_game_info[home.teamID == right_team_id()]
-    }else if (rightHome() == "Away") {
-      games_right <- vF_game_info[away.teamID == right_team_id()]
-    }
-    return(vF_game_plays[team.id.for == right_team_id() & (as.numeric(game.id) > as.numeric(lower_lim) & as.numeric(game.id) < as.numeric(upper_lim))
-                         & game.id %in% games_right$game.id])
   })
   df_arena_home <- shiny::reactive({
     year <- selected_year_arena_shots()
@@ -324,40 +269,7 @@ app_server <- function(input, output, session) {
 
     )
   })
-  output$shotByTeam <- renderUI({
-    fluidPage(theme = shinythemes::shinytheme("spacelab"),
-              fluidRow(
-                align='center',
-                #collapsible box for main inputs
-                box(solidHeader = F, status = 'primary', collapsible = T, width = '100%',
-                    title = "Filters",
-                    #input selections are inside div so we can place left and right inputs side by side
-                    div(style="display: inline-block;vertical-align:top; width: 30% ; margin-bottom: 0em;",
-                        selectInput('leftTeam', 'Team 1', choices = team_choices(), selected = 'Boston Bruins', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 15% ; margin-bottom: 0em;",
-                        radioButtons('leftHome', '', choices = c('Home','Away'), selected = 'Home',
-                                     inline = FALSE, width = NULL, choiceNames = NULL,
-                                     choiceValues = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 30%; margin-bottom: 0em;",
-                        selectInput('rightTeam', 'Team 2', choices = team_choices(), selected = 'New York Rangers', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 15% ; margin-bottom: 0em;",
-                        radioButtons('rightHome', '', choices = c('Home','Away'), selected = 'Home',
-                                     inline = FALSE, width = NULL, choiceNames = NULL,
-                                     choiceValues = NULL)),
-                    div(style="display: inline-block;vertical-align:top; width: 20%; margin-top: 0em;",
-                        selectInput('year', 'Season', choices = allYears, selected = '2018', multiple = FALSE,
-                                    selectize = TRUE, width = NULL, size = NULL))
-                )
-              ),
-              fluidRow(
-                align = "center",
-                box(solidHeader = F, status = 'primary', title = "Rink Plot", width = '100%', textOutput("teamText"),
-                    plotly::plotlyOutput("icemap_team"))
-              )
-    )
-  })
+
   output$shotByArena <- renderUI({
     fluidPage(theme = shinythemes::shinytheme("spacelab"),
               fluidRow(
@@ -628,64 +540,6 @@ lapply(1:4, \(id) {
                                                                                               alpha = .5) + geom_text_repel(data = arenaCities, aes(x=long, y=lat, label=name), hjust=0, vjust=0,
                                                                                                                             size=3.5) + scale_size_continuous(breaks = set_breaks)
   })
-  output$icemap_team <- plotly::renderPlotly({
-    df_left <- df_left()
-    df_right <- df_right()
-    df_left_shots <- df_left[result.eventTypeId == 'SHOT']
-    df_left_goals <- df_left[result.eventTypeId == 'GOAL']
-    df_right_shots <- df_right[result.eventTypeId == 'SHOT']
-    df_right_goals <- df_right[result.eventTypeId == 'GOAL']
-    df <- rbind(df_left, df_right)
-    #set the rink image and plot
-    txt <- RCurl::base64Encode(readBin(image_file, "raw", file.info(image_file)[1, "size"]), "txt")
-    df %>%
-      plot_ly()  %>%
-      add_markers(
-        data = df_left_shots,
-        hoverinfo='skip',
-        x = ~l.x, y=~l.y, marker = list(size = 20, color = 'blue', opacity = max(50/nrow(df_left_shots),0.01)), name = paste("Shot map of",input$leftTeam,"playing ",left_home())
-      ) %>%
-      add_markers(
-        data = df_right_shots,
-        hoverinfo='skip',
-        x = ~r.x, y=~r.y, marker = list(size = 20, color = 'red', opacity = max(50/nrow(df_right_shots),0.01)), name = paste("Shot map of",input$rightTeam,"playing ",right_home())
-      ) %>%
-      add_markers(
-        data = df_left_goals,
-        hoverinfo='text',
-        hovertext=paste(df_left_goals$result.secondaryType),
-        x = ~l.x, y=~l.y, marker = list(size = 3, color = 'black', opacity = 200/nrow(df_left_goals)), name = "Goals"
-      ) %>%
-      add_markers(
-        data = df_right_goals,
-        hoverinfo='text',
-        hovertext=paste(df_right_goals$result.secondaryType),
-        x = ~r.x, y=~r.y, showlegend = FALSE, marker = list(size = 3, color = 'black', opacity = 200/nrow(df_right_goals))
-      ) %>%
-      layout(
-        xaxis = list(range = c(-110,110), title = '', showticklabels=FALSE, zeroline = FALSE, showline = FALSE, fixedrange=TRUE),
-        yaxis = list(range = c(-50,50), title = '', showticklabels=FALSE, zeroline = FALSE, showline = FALSE, fixedrange=TRUE),
-        legend = list(
-          orientation = "h",
-          y = -0.1,
-          xanchor = "center",
-          x = 0.5),
-        images= list(
-          source= paste('data:image/png;base64', txt, sep=','),
-          xref= "x",
-          yref= "y",
-          x = 0,
-          y = 0,
-          sizex = 220,
-          sizey = 90,
-          opacity = 0.8,
-          layer = "below",
-          xanchor = "center",
-          yanchor = "middle",
-          sizing = "stretch"
-        )
-      )
-  })
   output$icemap_Arena <- plotly::renderPlotly({
     df_left <- df_arena_home()
     df_right <- df_arena_away()
@@ -801,10 +655,6 @@ lapply(1:4, \(id) {
           sizing = "stretch"
         )
       )
-  })
-  output$teamText <- renderText({
-    paste0("This is the shot map of ", input$leftTeam,
-           " playing ", left_home(), " on the left and ",input$rightTeam, " playing ",right_home()," on the right.\n The density of the shot map shows the frequency of shots taken in each area of the rink. Individual dot points show where goals have been scored from.")
   })
   output$arenaText <- renderText({
     paste0("This is the shot map of ", arena_team(),
