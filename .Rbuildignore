@@ -1,3 +1,9 @@
+^renv$
+^renv\.lock$
 ^.*\.Rproj$
 ^\.Rproj\.user$
 ^LICENSE\.md$
+^data-raw$
+^app\.R$
+^rsconnect$
+^Dockerfile$
