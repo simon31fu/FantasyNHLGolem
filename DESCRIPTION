@@ -2,7 +2,7 @@ Package: testonetwo
 Title: test12
 Version: 0.0.0.9000
 Authors@R: person('Simon', 'Fu', email = 'ximeng1@ualberta.ca', role = c('cre', 'aut'))
-Description: test for golem app submission
+Description: Test for golem app submission. Updated as import progresses.
 License: MIT + file LICENSE
 Imports: 
     config (>= 0.3.2),
