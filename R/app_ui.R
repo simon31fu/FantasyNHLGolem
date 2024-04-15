@@ -4,18 +4,13 @@
 #'     DO NOT REMOVE.
 #' @import shiny
 #' @import shinydashboard
+#' @import shinyjs
 #' @importFrom bslib bs_theme font_google
 #' @noRd
 app_ui <- function(request) {
-  # Ensure necessary libraries are loaded
-  library(shinydashboard)
-  library(shinyjs)
-
   # Define the header
   header <- dashboardHeader(
-    title = "NHL Ice Hockey"
-    # Alternative title with styling can be uncommented if needed
-    # title = span("NHL Ice Hockey", style = "color: black; font-size: 20px; font-family: Open Sans")
+    title = span("NHL Bet Assistor", style = "color: black; font-size: 20px; font-family: Open Sans")
   )
 
   # Define the sidebar
