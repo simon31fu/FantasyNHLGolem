@@ -9,7 +9,7 @@
 #'
 #' @noRd
 app_sys <- function(...) {
-  system.file(..., package = "NHLGolemApp")
+  system.file(..., package = "testonetwo")
 }
 
 
