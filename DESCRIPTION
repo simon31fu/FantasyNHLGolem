@@ -1,7 +1,8 @@
 Package: testonetwo
 Title: test12
 Version: 0.0.0.9000
-Authors@R: person('Simon', 'Fu', email = 'ximeng1@ualberta.ca', role = c('cre', 'aut'))
+Authors@R: 
+    person("Simon", "Fu", , "ximeng1@ualberta.ca", role = c("cre", "aut"))
 Description: Test for golem app submission. Updated as app progresses.
 License: MIT + file LICENSE
 URL: https://github.com/simon31fu/FantasyNHLGolem
@@ -34,8 +35,7 @@ Imports:
     tidyr
 Suggests: 
     spelling,
-    testonetwo,
-    testthat
+    testthat (>= 3.0.0)
 Config/testthat/edition: 3
 Encoding: UTF-8
 Language: en-US
