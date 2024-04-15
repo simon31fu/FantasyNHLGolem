@@ -1,0 +1,16 @@
+## code to prepare `data` dataset goes here
+library(dplyr)
+library(lubridate)
+library(readr)
+library(tidyr)
+library(DT)
+library(ggplot2)
+
+load("./data/data.RData")
+usethis::use_data(vF_game_info, overwrite = TRUE)
+usethis::use_data(vF_game_plays, overwrite = TRUE)
+usethis::use_data(vF_game_plays_players, overwrite = TRUE)
+usethis::use_data(vF_game_teams_stats, overwrite = TRUE)
+usethis::use_data(vF_player_info, overwrite = TRUE)
+usethis::use_data(vF_player_season_data, overwrite = TRUE)
+usethis::use_data(vF_teams_DT, overwrite = TRUE)

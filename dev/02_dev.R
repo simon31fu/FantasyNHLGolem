@@ -14,9 +14,32 @@
 # Engineering
 
 ## Dependencies ----
+usethis::use_package("shiny")
+usethis::use_package("shinydashboard")
+usethis::use_package("plotly")
+usethis::use_package("shinythemes")
+usethis::use_package("shinyjs")
+usethis::use_package("DT")
+usethis::use_package("tidyr")
+usethis::use_package("ggplot2")
+usethis::use_package("maps")
+usethis::use_package("stringr")
+usethis::use_package("readr")
+usethis::use_package("reshape2")
+usethis::use_package("ggrepel")
+usethis::use_package("plyr")
+usethis::use_package("tableHTML")
+usethis::use_package("GGally")
+usethis::use_package("scales")
+usethis::use_package("dplyr")
+usethis::use_package("tibble")
+usethis::use_package("stringr")
+usethis::use_package("forcats")
 ## Amend DESCRIPTION with dependencies read from package code parsing
 ## install.packages('attachment') # if needed.
-attachment::att_amend_desc()
+spelling::spell_check_package()
+spelling::update_wordlist()
+devtools::document()
 
 ## Add modules ----
 ## Create a module infrastructure in R/
@@ -43,7 +66,8 @@ golem::add_css_file("styles")
 
 ## Add internal datasets ----
 ## If you have data in your package
-usethis::use_data_raw(name = "my_dataset", open = FALSE)
+usethis::use_data_raw(name = "data", open = TRUE)
+
 
 ## Tests ----
 ## Add one line by test you want to create

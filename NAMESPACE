@@ -2,6 +2,7 @@
 
 export(run_app)
 import(shiny)
+import(shinydashboard)
 importFrom(DT,DTOutput)
 importFrom(DT,renderDT)
 importFrom(bslib,bs_theme)

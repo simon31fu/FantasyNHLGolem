@@ -5,8 +5,8 @@
 #' @import shiny
 #' @noRd
 #'
-load('./data/2019-12-11_app-data.RData', envir=.GlobalEnv)
 app_server <- function(input, output, session) {
+  load("./data/data.rData")
   shinyjs::addClass(selector = "body", class = "sidebar-collapse")
   allYears <- c('2018','2017','2016','2015','2014')
   team_choices <- reactive({
@@ -340,7 +340,7 @@ app_server <- function(input, output, session) {
               fluidRow(
                 align = "center",
                 box(solidHeader = F, status = 'primary', title = "Rink Plot", width = '100%', textOutput("teamText"),
-                    plotlyOutput("icemap_team"))
+                    plotly::plotlyOutput("icemap_team"))
               )
     )
   })
@@ -364,7 +364,7 @@ app_server <- function(input, output, session) {
               fluidRow(
                 align = "center",
                 box(title = 'Rink Plot', solidHeader = F, status = 'primary', width = '100%', textOutput("arenaText"),
-                    plotlyOutput("icemap_Arena"))
+                    plotly::plotlyOutput("icemap_Arena"))
               )
     )
   })
@@ -389,7 +389,7 @@ app_server <- function(input, output, session) {
               fluidRow(
                 align = "center",
                 box(solidHeader = F, status = 'primary', title = "Rink Plot", width = '100%', textOutput("playerText"),
-                    plotlyOutput("icemap_player"))
+                    plotly::plotlyOutput("icemap_player"))
               )
     )
   })
